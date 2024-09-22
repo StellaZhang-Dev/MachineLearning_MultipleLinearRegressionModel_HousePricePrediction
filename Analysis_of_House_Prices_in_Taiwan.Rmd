@@ -1,0 +1,188 @@
+---
+title: "House Price Analysis in Taiwan"
+author: "Stella Zhang"
+date: "2024-08-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+library(corrplot)
+library(dplyr)
+
+```
+
+## 1. Introduction
+In this analysis, we explore the factors that influence house prices in Taiwan using a multiple linear regression model. The dataset includes variables such as house age, distance to the nearest MRT station, the number of nearby convenience stores, and geographic coordinates (latitude and longitude). Our goal is to identify significant predictors of house prices and quantify their impact.
+
+## 2. Data Exploration
+### 2.1 Data Overview
+We begin by loading and exploring the dataset.
+
+```{r}
+
+# Load the dataset
+house_data <- read.csv("~/Downloads/real-estate-taiwan.csv")
+
+# Display the first few rows and structure of the dataset
+head(house_data)
+str(house_data)
+
+```
+
+### 2.2 Descriptive Statistics
+Summary statistics provide an overview of the dataset:
+
+```{r}
+
+summary(house_data)
+
+
+```
+The summary statistics show the central tendency and spread of variables such as house_age, mrt_distance, and house_price. For example, the house_price ranges from 7.6 to 117.5 million NT$, with a median of 38.45 million NT$. The wide range and median suggest significant variation in property values, which the regression model will explore further.
+
+### 2.3 Correlation Analysis
+We compute and visualize the correlation matrix to identify potential relationships among numerical variables.
+
+```{r}
+
+# Select numeric variables for correlation analysis
+numeric_vars <- house_data %>% select_if(is.numeric)
+
+# Compute and plot the correlation matrix
+corr_matrix <- cor(numeric_vars)
+corrplot(corr_matrix, method = "circle", tl.cex = 0.8)
+
+
+```
+The correlation matrix reveals that mrt_distance has a strong negative correlation with house_price (-0.67), indicating that properties closer to MRT stations tend to have higher prices. House_age also shows a moderate negative correlation with house_price, suggesting that newer houses are generally more expensive. These relationships justify their inclusion as predictors in the regression model.
+
+
+### 2.4 Data Visualization
+We visualize the distribution of house prices and explore relationships between house prices and other key variables.
+
+
+```{r}
+# Histogram of house prices
+ggplot(house_data, aes(x = house_price)) + 
+  geom_histogram(binwidth = 5, fill = "lightblue", color = "black") + 
+  theme_minimal() +
+  labs(title = "Distribution of House Prices", x = "House Price (in millions)", y = "Frequency")
+
+# Scatterplot of house price vs. distance to MRT
+ggplot(house_data, aes(x = mrt_distance,
+y = house_price)) + 
+  geom_point(color = "blue", alpha = 0.5) + 
+  theme_minimal() +
+  labs(title = "House Price vs. Distance to MRT Station", x = "Distance to MRT (meters)", y = "House Price (in millions)")
+
+```
+The histogram of house_price shows a right-skewed distribution, with most properties priced between 20 and 50 million NT$. The scatterplot between mrt_distance and house_price confirms a negative relationship, reinforcing the idea that proximity to MRT stations is a key driver of higher property prices.
+
+
+## 3. Regression Modeling
+
+### 3.1 Model Selection
+We fit a multiple linear regression model to identify significant predictors of house prices. The model includes house_age, mrt_distance, convenience_stores, latitude, and longitude as explanatory variables.
+
+
+```{r}
+
+# Fit the linear regression model
+model <- lm(house_price ~ house_age + mrt_distance + convenience_stores + latitude + longitude, data = house_data)
+
+# Display the summary of the model
+summary(model)
+
+
+```
+
+The model includes house_age, mrt_distance, convenience_stores, latitude, and longitude as predictors. The inclusion of these variables is supported by the correlation analysis and visualizations, which showed their relationships with house_price. For instance, mrt_distance was included due to its strong negative correlation with house_price. Latitude and longitude are included to account for geographic variation, even though longitude was not significant in the final model.
+
+
+### 3.2 Interpretation of Coefficients
+We interpret the model coefficients, focusing on variables that are statistically significant at the 5% significance level (p-value < 0.05).
+
+```{r}
+# Extract the coefficients and p-values
+coefficients <- summary(model)$coefficients
+
+# Display coefficients with significance levels
+coefficients
+
+# Identify variables significant at the 5% level
+significant_vars <- coefficients[coefficients[, "Pr(>|t|)"] < 0.05, ]
+significant_vars
+
+```
+-House Age (p < 0.001): Each additional year of house age decreases the price by approximately 0.269 million NT$.
+
+-MRT Distance (p < 0.001): Each additional meter of distance from the nearest MRT station decreases the price by 0.0043 million NT$.
+
+-Convenience Stores (p < 0.001): Each additional convenience store nearby increases the price by 1.163 million NT$.
+
+-Latitude (p < 0.001): Moving further north (increasing latitude) is associated with higher house prices.
+
+
+### 3.3 Model Diagnostics
+We check the assumptions of linear regression, such as normality of residuals and homoscedasticity, to validate the model.
+
+```{r model-diagnostics, fig.width=10, fig.height=10}
+# Adjust plot margins to avoid "figure margins too large" error
+par(mfrow = c(2, 2), mar = c(3, 3, 2, 1) + 0.1)
+plot(model)
+
+```
+
+-Residuals vs Fitted: There is no clear pattern, suggesting homoscedasticity.
+
+-Normal Q-Q Plot: Residuals follow a straight line, indicating that they are approximately normally distributed.
+
+-Scale-Location Plot: Variance appears consistent across fitted values.
+
+-Residuals vs Leverage Plot: There are no high-leverage points or influential outliers.
+
+## 4. Results and Discussion
+
+### 4.1 Summary of Findings
+
+```{r}
+
+# Calculate and display the R-squared value
+r_squared <- summary(model)$r.squared
+cat("R-squared: ", r_squared)
+
+```
+
+The regression model identifies significant predictors of house prices in Taiwan at the 5% significance level. The key findings include:
+
+-House Age: Older houses tend to have lower prices.
+
+-Distance to MRT: Houses closer to MRT stations have higher prices.
+
+-Convenience Stores: More convenience stores nearby are associated with higher house prices.
+
+-Latitude: Higher latitudes (moving north) are associated with higher house prices.
+
+The overall R-squared value of the model is 0.571, indicating that approximately 57% of the variance in house prices is explained by the model.
+
+### 4.2 Discussion
+The regression analysis reveals key factors influencing house prices in Taiwan. 
+
+-House age has a significant negative impact, with each additional year reducing the price by 0.269 million NT$, reflecting the common depreciation seen in older properties. Proximity to MRT stations is highly valued, as indicated by the negative coefficient for mrt_distance (-0.0043 million NT$ per meter), highlighting the premium placed on easy access to public transport in urban areas.
+
+-Local amenities also play a crucial role; each additional convenience_store nearby increases the price by 1.163 million NT$, emphasizing the importance of neighborhood services in property valuation. Additionally, properties at higher latitudes (closer to Taipei) command higher prices, consistent with the trend of higher real estate values in the north.
+
+However, the R-squared value of 0.571 suggests that other unaccounted factors, such as property size, building quality, or socio-economic conditions, may also significantly influence house prices.
+
+### 4.3 Limitations
+While the model provides valuable insights, it assumes linear relationships between the predictors and the house prices. Non-linear effects or interactions between variables may exist but are not captured in this model.
+
+## 5. Conclusion
+This analysis identifies key factors that significantly influence house prices in Taiwan. The findings highlight the importance of house age, proximity to MRT stations, and the availability of nearby convenience stores. These insights can guide real estate investors and policymakers in making informed decisions. Further research could explore non-linear models or additional variables to improve predictive accuracy.
+
+
